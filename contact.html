@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>联系我们</title>
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box;font-family:system-ui, -apple-system, sans-serif}
+    body{background:#f7f8fa;color:#222;padding:40px 20px}
+    .container{max-width:600px;margin:0 auto;background:#fff;border-radius:16px;padding:40px;box-shadow:0 2px 16px rgba(0,0,0,0.08)}
+    .avatar{width:100px;height:100px;border-radius:50%;background:#e8edff;margin:0 auto 24px;display:flex;align-items:center;justify-content:center;font-size:36px;color:#4060ff}
+    h1{text-align:center;font-size:26px;margin-bottom:12px}
+    .desc{text-align:center;color:#666;font-size:16px;line-height:1.6;margin-bottom:32px}
+    .tip{background:#f0f6ff;border-radius:10px;padding:16px;color:#2b5cb8;font-size:14px}
+  </style>
+</head>
+<body>
+<div class="container">
+  <div class="avatar">👤</div>
+  <h1>联系客服</h1>
+  <p class="desc">有任何问题，可以直接打开下方在线对话。<br>发送「转人工」即可接入人工客服。</p>
+  <div class="tip">💡 提示：AI无法解答时会自动引导转人工。</div>
+</div>
+
+<script>
+const WECOM_WEBHOOK = "https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=9b62a95f-bc28-4aa7-8c1a-ee4a26494aed";
+let handoffTriggered = false;
+
+function startListenMessage(){
+  // 全局TencentCloudChat
+  const chat = window.TencentCloudChat;
+  if(!chat){
+    console.log("IM实例还没准备好，500ms重试");
+    setTimeout(startListenMessage,500);
+    return;
+  }
+  console.log("✅ IM实例获取成功，开始监听消息");
+  chat.on(chat.EVENT.MESSAGE_RECEIVED, function(event) {
+    const messageList = event.data;
+    for(let msg of messageList) {
+      const text = msg.payload?.text?.content || "";
+      // 匹配转人工成功提示文案
+      if(text.includes("已为您转接人工客服") && !handoffTriggered) {
+        handoffTriggered = true;
+        console.log("🎉捕获转人工成功！消息：",text);
+        fetch(WECOM_WEBHOOK, {
+          method: "POST",
+          headers: {"Content-Type": "application/json"},
+          body: JSON.stringify({
+            msgtype: "text",
+            text: {
+              content: `【Knocket转人工提醒】访客发起转人工\n机器人回复：${text}`
+            }
+          })
+        }).then(r=>r.json()).then(res=>{
+          console.log("企微接口返回：",res);
+        }).catch(err=>{
+          console.error("推送企微失败（本地file://会跨域报错）",err);
+        })
+      }
+    }
+  })
+}
+startListenMessage();
+</script>
+
+<script src="https://trtc.io/knocket-sdk/sdk.js?identifier=b1b7f1c29da67c84ed&v=1792028285787"></script>
+</body>
+</html>
